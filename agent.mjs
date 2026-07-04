@@ -53,9 +53,24 @@ async function serviceHealth() {
   } catch (e) { return `unreachable: ${e.message}` }
 }
 
+// Watch our submitted hackathon specifically — it drops off the "live" feed after its deadline,
+// but we still need to catch the winners announcement (submission 7ed59a67, ~$500–3000 if we place).
+async function hackathonStatus() {
+  const key = process.env.SUPERTEAM_API_KEY
+  if (!key) return { skipped: true }
+  try {
+    const r = await fetch('https://superteam.fun/api/agents/listings/details/imperial-ai-agent-hackathon-build-the-agent-economy', { headers: { Authorization: `Bearer ${key}` } })
+    if (!r.ok) return { error: `HTTP ${r.status}` }
+    const d = await r.json()
+    const l = d.listing || d
+    return { status: l.status, isActive: l.isActive, winnersAnnounced: l.isWinnersAnnounced ?? l.winnersAnnouncedAt ?? null }
+  } catch (e) { return { error: e.message } }
+}
+
 const usdc = await baseUsdc()
 const superteam = await superteamLive()
 const service = await serviceHealth()
+const hackathon = await hackathonStatus()
 
 // remember which listing slugs we have already seen, so we can flag genuinely NEW ones
 let seen = []
@@ -64,7 +79,7 @@ const openSlugs = (superteam.open || []).map((o) => o.slug)
 const fresh = openSlugs.filter((s) => !seen.includes(s))
 writeFileSync(new URL('./seen-listings.json', import.meta.url), JSON.stringify([...new Set([...seen, ...openSlugs])], null, 0))
 
-const snapshot = { ts: now, baseUsdc: usdc, service, superteam, newListings: fresh }
+const snapshot = { ts: now, baseUsdc: usdc, service, hackathon, superteam, newListings: fresh }
 appendFileSync(new URL('./history.jsonl', import.meta.url), JSON.stringify(snapshot) + '\n')
 
 const md = `# Earning agent status
@@ -76,6 +91,9 @@ _Last run: ${now} (UTC), on GitHub Actions._
 
 ## 🛰️ Paid service (Solana Token Intelligence, x402)
 - ${SERVICE} — **${service}** · listed on 402index.io
+
+## 🏆 Imperial hackathon (our submission 7ed59a67 — ~$500–3000 if we place)
+- listing status: **${hackathon.status ?? hackathon.error ?? 'n/a'}**${hackathon.winnersAnnounced ? ` · WINNERS ANNOUNCED: ${hackathon.winnersAnnounced}` : ''}
 
 ## 🎯 Open agent listings (Superteam)
 ${superteam.skipped ? `_scan skipped: ${superteam.skipped}_`
