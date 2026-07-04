@@ -8,7 +8,7 @@
  * Secrets (GitHub repo → Settings → Secrets): SUPERTEAM_API_KEY (optional; scan skipped without it).
  * No private keys ever live here — this process only READS. Earning/spending stays offline.
  */
-import { writeFileSync, appendFileSync, readFileSync } from 'node:fs'
+import { writeFileSync, appendFileSync, readFileSync, unlinkSync } from 'node:fs'
 
 const EVM_WALLET = '0xd194AB36E66BccDD80f19b56757CFe52EdEd49af' // Base USDC receive-only
 const BASE_USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
@@ -106,17 +106,23 @@ const openTask = await openTaskRail()
 const hackathon = await hackathonStatus()
 
 // Balance delta vs the previous run — a payment landing is THE profit event, so flag it loudly
-// instead of leaving it as a quietly-changed number nobody reads.
-let prevUsdc = null
+// instead of leaving it as a quietly-changed number nobody reads. Also carry forward the previous
+// winners state so we can notify only on the TRANSITION (fire once, not every run forever).
+let prevUsdc = null, prevWinners = false
 try {
   const lines = readFileSync(new URL('./history.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc }
+  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; prevWinners = Boolean(p.winnersFired) }
 } catch {}
 const delta = (typeof usdc === 'number' && typeof prevUsdc === 'number') ? usdc - prevUsdc : 0
 
 // Robust winners watch: this fires exactly once, after Jul 6, and CANNOT be tested until then — so
 // treat ANY truthy signal as fired and shout. This is the $500–3000 event; it must not fail quietly.
 const winnersFired = Boolean(hackathon.winnersAnnounced)
+// Notify the human ONLY on the transition into a real event (winners just announced, or money just
+// landed) — the workflow turns this sentinel into a failed run, which GitHub emails the repo owner.
+// Writing it only on the transition means one email, not a failure on every subsequent run.
+const justWon = winnersFired && !prevWinners
+const notify = justWon || delta > 0
 
 // remember which listing slugs we have already seen, so we can flag genuinely NEW ones
 let seen = []
@@ -158,6 +164,21 @@ ${fresh.length ? `## 🆕 New since last run\n${freshDetail.map((o) => `- ${o.ac
 _This file is rewritten by \`agent.mjs\` on every scheduled run. History in \`history.jsonl\`._
 `
 writeFileSync(new URL('./status.md', import.meta.url), md)
+
+// The notification sentinel: present ONLY on a transition run. The workflow's final step fails the
+// run when it exists (→ GitHub emails the repo owner), then it's cleared on the next run so a single
+// event produces a single alert. This is our no-signup push channel; the human also has the always-
+// current status.md and can just ask. Written AFTER status.md so a commit still captures state.
+const NOTIFY = new URL('./NOTIFY.txt', import.meta.url)
+if (notify) {
+  const msg = justWon
+    ? `🏆 HACKATHON WINNERS ANNOUNCED (${now}) — claim at superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A`
+    : `💰 PAYMENT RECEIVED (${now}) — +${delta.toFixed(6)} USDC on Base, total ${usdc}`
+  writeFileSync(NOTIFY, msg + '\n')
+} else {
+  try { unlinkSync(NOTIFY) } catch {}
+}
+
 console.log('status:', JSON.stringify(snapshot))
 // Loud CI signals for the events that actually matter — these surface in the Actions run summary.
 if (delta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${delta.toFixed(6)} USDC landed on Base — total ${usdc}`)
