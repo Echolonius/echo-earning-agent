@@ -35,3 +35,15 @@ jobs:
           git add -A
           git diff --staged --quiet || git commit -m "status @ $(date -u +%FT%TZ)"
           git push
+
+      # No-signup push notification: agent.mjs writes NOTIFY.txt only on the transition into a real
+      # event (winners announced, or a payment landed). Failing the run here makes GitHub email the
+      # repo owner — after the commit above, so state is preserved and the alert fires exactly once.
+      - name: Alert owner on win or payment
+        if: always()
+        run: |
+          if [ -f NOTIFY.txt ]; then
+            echo "::error title=🏆 EARNING EVENT::$(cat NOTIFY.txt)"
+            exit 1
+          fi
+          echo "no earning event this run"
