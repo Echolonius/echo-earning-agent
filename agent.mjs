@@ -40,7 +40,12 @@ async function superteamLive() {
     const d = await r.json()
     const items = Array.isArray(d) ? d : d.result || []
     const open = items.filter((l) => (l.deadline || '9999') > now)
-      .map((l) => ({ slug: l.slug, type: l.type, reward: l.rewardAmount, token: l.token, deadline: (l.deadline || '').slice(0, 10) }))
+      // agentAccess is the competition signal: AGENT_ONLY listings are hidden from human feeds, so
+      // they are the highest-odds money (past AGENT_ONLY rounds paid 3000–5000). Surface it + reward
+      // so a low-competition high-value drop is obvious the moment it lands — no scorer needed at this
+      // volume, just the two fields that decide whether a new listing is worth dropping everything for.
+      .map((l) => ({ slug: l.slug, type: l.type, reward: l.rewardAmount, token: l.token, access: l.agentAccess, deadline: (l.deadline || '').slice(0, 10) }))
+      .sort((a, b) => (b.access === 'AGENT_ONLY' ? 1 : 0) - (a.access === 'AGENT_ONLY' ? 1 : 0) || (b.reward || 0) - (a.reward || 0))
     return { total: items.length, open }
   } catch (e) { return { error: e.message } }
 }
@@ -51,6 +56,32 @@ async function serviceHealth() {
     const r = await fetch(`${SERVICE}/healthz`, { signal: AbortSignal.timeout(10000) })
     return r.ok ? 'live' : `down (HTTP ${r.status})`
   } catch (e) { return `unreachable: ${e.message}` }
+}
+
+// Verify the actual PAID route, not just /healthz: an unpaid GET must return 402 with a payment
+// challenge. This is the money path — if it 404s/500s we are silently losing every sale, which a
+// liveness ping on the free route would never catch. The unpaid probe costs nothing (no settlement).
+async function paidRouteHealth() {
+  try {
+    const r = await fetch(`${SERVICE}/api/token-intel?mint=DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263`, { signal: AbortSignal.timeout(10000) })
+    if (r.status === 402 && r.headers.get('payment-required')) return 'gate-ok (402 challenge served)'
+    return `BROKEN (HTTP ${r.status}) — sales path down`
+  } catch (e) { return `unreachable: ${e.message}` }
+}
+
+// Re-probe OpenTask each run: memory recorded its payment router as "unconfigured" (a dead rail). It
+// exposes a machine-readable status per method — when any flips to "available", the rail is LIVE and
+// we can act (and it lists x402-v2, which our existing service already speaks). This is a genuine net
+// beyond Superteam: a second earning source we catch the instant it revives, without any signup.
+async function openTaskRail() {
+  try {
+    const r = await fetch('https://opentask.ai/api/payment-methods', { signal: AbortSignal.timeout(10000) })
+    if (!r.ok) return { state: `HTTP ${r.status}` }
+    const d = await r.json()
+    const methods = Array.isArray(d.methods) ? d.methods : []
+    const live = methods.filter((m) => m.status === 'available')
+    return { state: live.length ? 'AVAILABLE' : 'unconfigured', live: live.map((m) => m.protocol) }
+  } catch (e) { return { state: `err:${e.message}` } }
 }
 
 // Watch our submitted hackathon specifically — it drops off the "live" feed after its deadline,
@@ -70,16 +101,32 @@ async function hackathonStatus() {
 const usdc = await baseUsdc()
 const superteam = await superteamLive()
 const service = await serviceHealth()
+const paidRoute = await paidRouteHealth()
+const openTask = await openTaskRail()
 const hackathon = await hackathonStatus()
+
+// Balance delta vs the previous run — a payment landing is THE profit event, so flag it loudly
+// instead of leaving it as a quietly-changed number nobody reads.
+let prevUsdc = null
+try {
+  const lines = readFileSync(new URL('./history.jsonl', import.meta.url), 'utf8').trim().split('\n')
+  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc }
+} catch {}
+const delta = (typeof usdc === 'number' && typeof prevUsdc === 'number') ? usdc - prevUsdc : 0
+
+// Robust winners watch: this fires exactly once, after Jul 6, and CANNOT be tested until then — so
+// treat ANY truthy signal as fired and shout. This is the $500–3000 event; it must not fail quietly.
+const winnersFired = Boolean(hackathon.winnersAnnounced)
 
 // remember which listing slugs we have already seen, so we can flag genuinely NEW ones
 let seen = []
 try { seen = JSON.parse(readFileSync(new URL('./seen-listings.json', import.meta.url), 'utf8')) } catch {}
 const openSlugs = (superteam.open || []).map((o) => o.slug)
 const fresh = openSlugs.filter((s) => !seen.includes(s))
+const freshDetail = (superteam.open || []).filter((o) => fresh.includes(o.slug))
 writeFileSync(new URL('./seen-listings.json', import.meta.url), JSON.stringify([...new Set([...seen, ...openSlugs])], null, 0))
 
-const snapshot = { ts: now, baseUsdc: usdc, service, hackathon, superteam, newListings: fresh }
+const snapshot = { ts: now, baseUsdc: usdc, delta, service, paidRoute, openTask, hackathon, winnersFired, superteam, newListings: fresh }
 appendFileSync(new URL('./history.jsonl', import.meta.url), JSON.stringify(snapshot) + '\n')
 
 const md = `# Earning agent status
@@ -87,26 +134,34 @@ const md = `# Earning agent status
 _Last run: ${now} (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
-- **Base USDC** \`${EVM_WALLET}\`: **${usdc}**
+- **Base USDC** \`${EVM_WALLET}\`: **${usdc}**${delta > 0 ? ` · 🎉 **+${delta.toFixed(6)} received since last run!**` : ''}
 
 ## 🛰️ Paid service (Solana Token Intelligence, x402)
-- ${SERVICE} — **${service}** · listed on 402index.io
+- ${SERVICE} — service **${service}** · paid-route **${paidRoute}** · listed on 402index.io
+
+## 🔀 Alt rails (widening the net beyond Superteam)
+- **OpenTask** router: **${openTask.state}**${openTask.live?.length ? ` · LIVE methods: ${openTask.live.join(', ')} — ACT NOW` : ' _(watching for revival; speaks x402-v2 our service already supports)_'}
 
 ## 🏆 Imperial hackathon (our submission 7ed59a67 — ~$500–3000 if we place)
-- listing status: **${hackathon.status ?? hackathon.error ?? 'n/a'}**${hackathon.winnersAnnounced ? ` · WINNERS ANNOUNCED: ${hackathon.winnersAnnounced}` : ''}
+- listing status: **${hackathon.status ?? hackathon.error ?? 'n/a'}**${winnersFired ? ` · 🏆 **WINNERS ANNOUNCED — CHECK CLAIM: superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A**` : ''}
 
-## 🎯 Open agent listings (Superteam)
+## 🎯 Open agent listings (Superteam) — AGENT_ONLY first (lowest competition)
 ${superteam.skipped ? `_scan skipped: ${superteam.skipped}_`
   : superteam.error ? `_scan error: ${superteam.error}_`
   : (superteam.open?.length
-      ? superteam.open.map((o) => `- \`${o.slug}\` — ${o.type} · ${o.reward} ${o.token || ''} · deadline ${o.deadline}`).join('\n')
+      ? superteam.open.map((o) => `- ${o.access === 'AGENT_ONLY' ? '🔒 **AGENT_ONLY**' : 'open'} · \`${o.slug}\` — ${o.type} · ${o.reward} ${o.token || ''} · deadline ${o.deadline}`).join('\n')
       : '_none open right now_')}
 
-${fresh.length ? `## 🆕 New since last run\n${fresh.map((s) => `- ${s}`).join('\n')}` : ''}
+${fresh.length ? `## 🆕 New since last run\n${freshDetail.map((o) => `- ${o.access === 'AGENT_ONLY' ? '🔒 AGENT_ONLY' : 'open'} · \`${o.slug}\` — ${o.reward} ${o.token || ''} · deadline ${o.deadline}`).join('\n')}` : ''}
 
 ---
 _This file is rewritten by \`agent.mjs\` on every scheduled run. History in \`history.jsonl\`._
 `
 writeFileSync(new URL('./status.md', import.meta.url), md)
 console.log('status:', JSON.stringify(snapshot))
-if (fresh.length) console.log('::notice::NEW listings:', fresh.join(', '))
+// Loud CI signals for the events that actually matter — these surface in the Actions run summary.
+if (delta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${delta.toFixed(6)} USDC landed on Base — total ${usdc}`)
+if (winnersFired) console.log('::notice title=HACKATHON WINNERS ANNOUNCED::claim at superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A')
+if (openTask.live?.length) console.log(`::notice title=OPENTASK RAIL LIVE::methods ${openTask.live.join(', ')} — a new earning source just opened`)
+if (String(paidRoute).startsWith('BROKEN')) console.log(`::warning title=SALES PATH DOWN::${paidRoute}`)
+if (freshDetail.length) console.log('::notice title=NEW LISTINGS::' + freshDetail.map((o) => `${o.slug} (${o.access}, ${o.reward} ${o.token})`).join(' | '))
