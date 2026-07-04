@@ -45,8 +45,17 @@ async function superteamLive() {
   } catch (e) { return { error: e.message } }
 }
 
+const SERVICE = 'https://token-intel-x402.echolonius.deno.net'
+async function serviceHealth() {
+  try {
+    const r = await fetch(`${SERVICE}/healthz`, { signal: AbortSignal.timeout(10000) })
+    return r.ok ? 'live' : `down (HTTP ${r.status})`
+  } catch (e) { return `unreachable: ${e.message}` }
+}
+
 const usdc = await baseUsdc()
 const superteam = await superteamLive()
+const service = await serviceHealth()
 
 // remember which listing slugs we have already seen, so we can flag genuinely NEW ones
 let seen = []
@@ -55,7 +64,7 @@ const openSlugs = (superteam.open || []).map((o) => o.slug)
 const fresh = openSlugs.filter((s) => !seen.includes(s))
 writeFileSync(new URL('./seen-listings.json', import.meta.url), JSON.stringify([...new Set([...seen, ...openSlugs])], null, 0))
 
-const snapshot = { ts: now, baseUsdc: usdc, superteam, newListings: fresh }
+const snapshot = { ts: now, baseUsdc: usdc, service, superteam, newListings: fresh }
 appendFileSync(new URL('./history.jsonl', import.meta.url), JSON.stringify(snapshot) + '\n')
 
 const md = `# Earning agent status
@@ -64,6 +73,9 @@ _Last run: ${now} (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** \`${EVM_WALLET}\`: **${usdc}**
+
+## 🛰️ Paid service (Solana Token Intelligence, x402)
+- ${SERVICE} — **${service}** · listed on 402index.io
 
 ## 🎯 Open agent listings (Superteam)
 ${superteam.skipped ? `_scan skipped: ${superteam.skipped}_`
