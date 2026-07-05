@@ -85,7 +85,7 @@ async function intelPipelineHealth() {
       const names = (md?.result?.tools ?? []).map((x) => x.name)
       mcp = names.includes('token_intel') && names.includes('token_intel_demo') ? 'mcp-ok' : `mcp DEGRADED (tools: ${names.join(',') || 'none'})`
     } catch { /* keep mcp-down */ }
-    return `pipeline-ok (demo score ${d.safety.score}${d.dexScreener ? ', 2 sources' : ', Jupiter only'}, ${mcp})`
+    return `pipeline-ok (demo score ${d.safety.score}, ${1 + (d.dexScreener ? 1 : 0) + (d.rugCheck ? 1 : 0)} sources, ${mcp})`
   } catch (e) { return `demo unreachable: ${e.message}` }
 }
 
