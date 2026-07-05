@@ -118,7 +118,25 @@ async function hackathonStatus() {
   } catch (e) { return { error: e.message } }
 }
 
+// Solana-side USDC (second payment rail added 2026-07-05; receive-only wallet).
+const SOL_WALLET = '3wbinZDnWmDxHMLtACNrskwZvRwg4KYbBWw1wuviXXHT'
+async function solUsdc() {
+  try {
+    const r = await fetch('https://api.mainnet-beta.solana.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1, method: 'getTokenAccountsByOwner',
+        params: [SOL_WALLET, { mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' }, { encoding: 'jsonParsed' }],
+      }),
+    })
+    const j = await r.json()
+    return (j?.result?.value ?? []).reduce((s, a) => s + (Number(a?.account?.data?.parsed?.info?.tokenAmount?.uiAmount) || 0), 0)
+  } catch (e) { return `err:${e.message}` }
+}
+
 const usdc = await baseUsdc()
+const solUsdcBal = await solUsdc()
 const superteam = await superteamLive()
 const service = await serviceHealth()
 const paidRoute = await paidRouteHealth()
@@ -162,6 +180,7 @@ _Last run: ${now} (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** \`${EVM_WALLET}\`: **${usdc}**${delta > 0 ? ` · 🎉 **+${delta.toFixed(6)} received since last run!**` : ''}
+- **Solana USDC** \`${SOL_WALLET}\`: **${solUsdcBal}**
 
 ## 🛰️ Paid service (Solana Token Intelligence, x402)
 - ${SERVICE} — service **${service}** · paid-route **${paidRoute}** · intel **${intelPipeline}** · listed on 402index.io
