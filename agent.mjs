@@ -104,6 +104,31 @@ async function openTaskRail() {
   } catch (e) { return { state: `err:${e.message}` } }
 }
 
+// dealwork.ai rail (registered 2026-07-05, agent echo-fable, autonomous onboard — the only other
+// zero-signup work marketplace found in the 07-05 sweep). Three duties per run: (1) heartbeat so
+// the platform shows us alive (buyers can filter dead agents), (2) watch our bids for acceptance,
+// (3) watch contracts — an escrow_locked contract is REAL MONEY waiting on work, and the human's
+// box may be off for days, so that event must escalate loudly, not sit in a feed nobody polls.
+const DEALWORK_AGENT_ID = '4f271d8d-db0c-4165-ba43-1678a657abc0'
+async function dealworkRail() {
+  const key = process.env.DEALWORK_API_KEY
+  if (!key) return { skipped: 'no DEALWORK_API_KEY secret' }
+  const H = { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+  const out = {}
+  try {
+    // heartbeat is best-effort: a failure shouldn't hide bid/contract state below
+    await fetch(`https://dealwork.ai/api/v1/agents/${DEALWORK_AGENT_ID}/heartbeat`, {
+      method: 'POST', headers: H, body: JSON.stringify({ skillVersion: '1.4.0' }), signal: AbortSignal.timeout(10000),
+    }).then((r) => { out.heartbeat = r.ok ? 'ok' : `HTTP ${r.status}` }).catch((e) => { out.heartbeat = `err:${e.message}` })
+    const bids = await (await fetch('https://dealwork.ai/api/v1/bids/mine?per_page=20', { headers: H, signal: AbortSignal.timeout(10000) })).json()
+    out.bids = (bids.data || []).map((b) => ({ id: b.id.slice(0, 8), job: (b.jobTitle || b.jobId || '').slice(0, 60), amount: b.proposedAmount, status: b.status }))
+    const contracts = await (await fetch('https://dealwork.ai/api/v1/contracts?role=worker&per_page=20', { headers: H, signal: AbortSignal.timeout(10000) })).json()
+    out.contracts = (contracts.data || []).map((c) => ({ id: c.id.slice(0, 8), state: c.state, amount: c.amount || c.escrowAmount }))
+    out.actionable = out.contracts.filter((c) => ['escrow_locked', 'in_progress'].includes(c.state)).length
+    return out
+  } catch (e) { return { error: e.message, ...out } }
+}
+
 // Watch our submitted hackathon specifically — it drops off the "live" feed after its deadline,
 // but we still need to catch the winners announcement (submission 7ed59a67, ~$500–3000 if we place).
 async function hackathonStatus() {
@@ -143,16 +168,20 @@ const paidRoute = await paidRouteHealth()
 const intelPipeline = await intelPipelineHealth()
 const openTask = await openTaskRail()
 const hackathon = await hackathonStatus()
+const dealwork = await dealworkRail()
 
 // Balance delta vs the previous run — a payment landing is THE profit event, so flag it loudly
 // instead of leaving it as a quietly-changed number nobody reads. Also carry forward the previous
 // winners state so we can notify only on the TRANSITION (fire once, not every run forever).
-let prevUsdc = null, prevWinners = false
+let prevUsdc = null, prevWinners = false, prevActionable = 0
 try {
   const lines = readFileSync(new URL('./history.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; prevWinners = Boolean(p.winnersFired) }
+  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; prevWinners = Boolean(p.winnersFired); prevActionable = p.dealwork?.actionable || 0 }
 } catch {}
 const delta = (typeof usdc === 'number' && typeof prevUsdc === 'number') ? usdc - prevUsdc : 0
+// A dealwork contract appearing means a bid was ACCEPTED and escrow is locked — work is owed and
+// paid-for. Same transition-only alert discipline as payments: fire once when the count rises.
+const newContract = (dealwork.actionable || 0) > prevActionable
 
 // Robust winners watch: this fires exactly once, after Jul 6, and CANNOT be tested until then — so
 // treat ANY truthy signal as fired and shout. This is the $500–3000 event; it must not fail quietly.
@@ -161,7 +190,7 @@ const winnersFired = Boolean(hackathon.winnersAnnounced)
 // landed) — the workflow turns this sentinel into a failed run, which GitHub emails the repo owner.
 // Writing it only on the transition means one email, not a failure on every subsequent run.
 const justWon = winnersFired && !prevWinners
-const notify = justWon || delta > 0
+const notify = justWon || delta > 0 || newContract
 
 // remember which listing slugs we have already seen, so we can flag genuinely NEW ones
 let seen = []
@@ -171,7 +200,7 @@ const fresh = openSlugs.filter((s) => !seen.includes(s))
 const freshDetail = (superteam.open || []).filter((o) => fresh.includes(o.slug))
 writeFileSync(new URL('./seen-listings.json', import.meta.url), JSON.stringify([...new Set([...seen, ...openSlugs])], null, 0))
 
-const snapshot = { ts: now, baseUsdc: usdc, delta, service, paidRoute, intelPipeline, openTask, hackathon, winnersFired, superteam, newListings: fresh }
+const snapshot = { ts: now, baseUsdc: usdc, delta, service, paidRoute, intelPipeline, openTask, hackathon, winnersFired, dealwork, superteam, newListings: fresh }
 appendFileSync(new URL('./history.jsonl', import.meta.url), JSON.stringify(snapshot) + '\n')
 
 const md = `# Earning agent status
@@ -187,6 +216,7 @@ _Last run: ${now} (UTC), on GitHub Actions._
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
 - **OpenTask** router: **${openTask.state}**${openTask.live?.length ? ` · LIVE methods: ${openTask.live.join(', ')} — ACT NOW` : ' _(watching for revival; speaks x402-v2 our service already supports)_'}
+- **dealwork.ai** (agent echo-fable): ${dealwork.skipped ? `_${dealwork.skipped}_` : dealwork.error ? `_err: ${dealwork.error}_` : `heartbeat **${dealwork.heartbeat}** · bids: ${dealwork.bids?.map((b) => `${b.status} $${b.amount}`).join(', ') || 'none'} · contracts: ${dealwork.contracts?.length ? dealwork.contracts.map((c) => `${c.state} $${c.amount ?? '?'}`).join(', ') : 'none'}${dealwork.actionable ? ' · ⚡ **ESCROW LOCKED — WORK IS OWED, open a session**' : ''}`}
 
 ## 🏆 Imperial hackathon (our submission 7ed59a67 — ~$500–3000 if we place)
 - listing status: **${hackathon.status ?? hackathon.error ?? 'n/a'}**${winnersFired ? ` · 🏆 **WINNERS ANNOUNCED — CHECK CLAIM: superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A**` : ''}
@@ -213,6 +243,8 @@ const NOTIFY = new URL('./NOTIFY.txt', import.meta.url)
 if (notify) {
   const msg = justWon
     ? `🏆 HACKATHON WINNERS ANNOUNCED (${now}) — claim at superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A`
+    : newContract
+    ? `⚡ DEALWORK BID ACCEPTED (${now}) — escrow locked, work is owed; open a Claude session to deliver`
     : `💰 PAYMENT RECEIVED (${now}) — +${delta.toFixed(6)} USDC on Base, total ${usdc}`
   writeFileSync(NOTIFY, msg + '\n')
 } else {
@@ -224,5 +256,6 @@ console.log('status:', JSON.stringify(snapshot))
 if (delta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${delta.toFixed(6)} USDC landed on Base — total ${usdc}`)
 if (winnersFired) console.log('::notice title=HACKATHON WINNERS ANNOUNCED::claim at superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A')
 if (openTask.live?.length) console.log(`::notice title=OPENTASK RAIL LIVE::methods ${openTask.live.join(', ')} — a new earning source just opened`)
+if (newContract) console.log('::notice title=DEALWORK BID ACCEPTED::escrow locked — work is owed, open a session to deliver')
 if (String(paidRoute).startsWith('BROKEN')) console.log(`::warning title=SALES PATH DOWN::${paidRoute}`)
 if (freshDetail.length) console.log('::notice title=NEW LISTINGS::' + freshDetail.map((o) => `${o.slug} (${o.access}, ${o.reward} ${o.token})`).join(' | '))
