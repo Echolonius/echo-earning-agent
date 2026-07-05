@@ -77,7 +77,15 @@ async function intelPipelineHealth() {
     if (!r.ok) return `demo BROKEN (HTTP ${r.status}) — intel pipeline down`
     const d = await r.json()
     if (d?.safety?.score == null) return 'demo responds but intel shape wrong — pipeline degraded'
-    return `pipeline-ok (demo score ${d.safety.score}${d.dexScreener ? ', 2 sources' : ', Jupiter only'})`
+    // MCP surface (added 2026-07-05): stateless tools/list must return both tools.
+    let mcp = 'mcp-down'
+    try {
+      const m = await fetch(`${SERVICE}/mcp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }), signal: AbortSignal.timeout(10000) })
+      const md = await m.json()
+      const names = (md?.result?.tools ?? []).map((x) => x.name)
+      mcp = names.includes('token_intel') && names.includes('token_intel_demo') ? 'mcp-ok' : `mcp DEGRADED (tools: ${names.join(',') || 'none'})`
+    } catch { /* keep mcp-down */ }
+    return `pipeline-ok (demo score ${d.safety.score}${d.dexScreener ? ', 2 sources' : ', Jupiter only'}, ${mcp})`
   } catch (e) { return `demo unreachable: ${e.message}` }
 }
 
