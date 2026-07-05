@@ -69,6 +69,18 @@ async function paidRouteHealth() {
   } catch (e) { return `unreachable: ${e.message}` }
 }
 
+// The /demo route runs the FULL intel pipeline (Jupiter + DexScreener fusion) for free — probing it
+// catches silent upstream API drift that the 402 gate probe can't see (the gate never runs intel).
+async function intelPipelineHealth() {
+  try {
+    const r = await fetch(`${SERVICE}/api/token-intel/demo`, { signal: AbortSignal.timeout(15000) })
+    if (!r.ok) return `demo BROKEN (HTTP ${r.status}) — intel pipeline down`
+    const d = await r.json()
+    if (d?.safety?.score == null) return 'demo responds but intel shape wrong — pipeline degraded'
+    return `pipeline-ok (demo score ${d.safety.score}${d.dexScreener ? ', 2 sources' : ', Jupiter only'})`
+  } catch (e) { return `demo unreachable: ${e.message}` }
+}
+
 // Re-probe OpenTask each run: memory recorded its payment router as "unconfigured" (a dead rail). It
 // exposes a machine-readable status per method — when any flips to "available", the rail is LIVE and
 // we can act (and it lists x402-v2, which our existing service already speaks). This is a genuine net
@@ -102,6 +114,7 @@ const usdc = await baseUsdc()
 const superteam = await superteamLive()
 const service = await serviceHealth()
 const paidRoute = await paidRouteHealth()
+const intelPipeline = await intelPipelineHealth()
 const openTask = await openTaskRail()
 const hackathon = await hackathonStatus()
 
@@ -132,7 +145,7 @@ const fresh = openSlugs.filter((s) => !seen.includes(s))
 const freshDetail = (superteam.open || []).filter((o) => fresh.includes(o.slug))
 writeFileSync(new URL('./seen-listings.json', import.meta.url), JSON.stringify([...new Set([...seen, ...openSlugs])], null, 0))
 
-const snapshot = { ts: now, baseUsdc: usdc, delta, service, paidRoute, openTask, hackathon, winnersFired, superteam, newListings: fresh }
+const snapshot = { ts: now, baseUsdc: usdc, delta, service, paidRoute, intelPipeline, openTask, hackathon, winnersFired, superteam, newListings: fresh }
 appendFileSync(new URL('./history.jsonl', import.meta.url), JSON.stringify(snapshot) + '\n')
 
 const md = `# Earning agent status
@@ -143,7 +156,7 @@ _Last run: ${now} (UTC), on GitHub Actions._
 - **Base USDC** \`${EVM_WALLET}\`: **${usdc}**${delta > 0 ? ` · 🎉 **+${delta.toFixed(6)} received since last run!**` : ''}
 
 ## 🛰️ Paid service (Solana Token Intelligence, x402)
-- ${SERVICE} — service **${service}** · paid-route **${paidRoute}** · listed on 402index.io
+- ${SERVICE} — service **${service}** · paid-route **${paidRoute}** · intel **${intelPipeline}** · listed on 402index.io
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
 - **OpenTask** router: **${openTask.state}**${openTask.live?.length ? ` · LIVE methods: ${openTask.live.join(', ')} — ACT NOW` : ' _(watching for revival; speaks x402-v2 our service already supports)_'}
