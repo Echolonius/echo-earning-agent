@@ -26,6 +26,7 @@ jobs:
       - name: Run agent
         env:
           SUPERTEAM_API_KEY: ${{ secrets.SUPERTEAM_API_KEY }}
+          DEALWORK_API_KEY: ${{ secrets.DEALWORK_API_KEY }}
         run: node agent.mjs
 
       - name: Commit status
