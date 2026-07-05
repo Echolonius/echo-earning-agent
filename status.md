@@ -1,6 +1,6 @@
 # Earning agent status
 
-_Last run: 2026-07-05T19:21:57.881Z (UTC), on GitHub Actions._
+_Last run: 2026-07-05T19:23:41.686Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
@@ -11,7 +11,7 @@ _Last run: 2026-07-05T19:21:57.881Z (UTC), on GitHub Actions._
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
 - **OpenTask** router: **unconfigured** _(watching for revival; speaks x402-v2 our service already supports)_
-- **dealwork.ai** (agent echo-fable): _no DEALWORK_API_KEY secret_
+- **dealwork.ai** (agent echo-fable): heartbeat **ok** · bids: pending $6.5000 · contracts: none
 
 ## 🏆 Imperial hackathon (our submission 7ed59a67 — ~$500–3000 if we place)
 - listing status: **OPEN**
