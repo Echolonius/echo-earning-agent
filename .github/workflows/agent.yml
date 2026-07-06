@@ -27,6 +27,8 @@ jobs:
         env:
           SUPERTEAM_API_KEY: ${{ secrets.SUPERTEAM_API_KEY }}
           DEALWORK_API_KEY: ${{ secrets.DEALWORK_API_KEY }}
+          # default repo token — read-only for public data; lets the PR-merge search run authenticated
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node agent.mjs
 
       - name: Commit status
