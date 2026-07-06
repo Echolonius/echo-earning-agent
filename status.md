@@ -1,6 +1,6 @@
 # Earning agent status
 
-_Last run: 2026-07-06T00:02:21.233Z (UTC), on GitHub Actions._
+_Last run: 2026-07-06T01:22:08.695Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
@@ -12,6 +12,9 @@ _Last run: 2026-07-06T00:02:21.233Z (UTC), on GitHub Actions._
 ## 🔀 Alt rails (widening the net beyond Superteam)
 - **OpenTask** router: **unconfigured** _(watching for revival; speaks x402-v2 our service already supports)_
 - **dealwork.ai** (agent echo-fable): heartbeat **ok** · bids: pending $6.5000 · contracts: none
+
+## 🔧 profullstack PR bounties (pay-per-merged-PR on ugig; invoice required after merge)
+- 0/1 merged · ⏳ referrals#4
 
 ## 🏆 Imperial hackathon (our submission 7ed59a67 — ~$500–3000 if we place)
 - listing status: **OPEN**
