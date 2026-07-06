@@ -184,8 +184,23 @@ async function solUsdc() {
   } catch (e) { return `err:${e.message}` }
 }
 
+// Native SOL balance — chovy's ugig bounties pay in NATIVE SOL (payment_coin: "SOL"), which the
+// USDC token-account query above never sees. Bounty submission 7895935a (sh1pt PR #763) pays here.
+async function solNative() {
+  try {
+    const r = await fetch('https://api.mainnet-beta.solana.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getBalance', params: [SOL_WALLET] }),
+    })
+    const j = await r.json()
+    return (j?.result?.value ?? 0) / 1e9
+  } catch (e) { return `err:${e.message}` }
+}
+
 const usdc = await baseUsdc()
 const solUsdcBal = await solUsdc()
+const solNativeBal = await solNative()
 const superteam = await superteamLive()
 const service = await serviceHealth()
 const paidRoute = await paidRouteHealth()
@@ -198,15 +213,16 @@ const github = await githubPrs()
 // Balance delta vs the previous run — a payment landing is THE profit event, so flag it loudly
 // instead of leaving it as a quietly-changed number nobody reads. Also carry forward the previous
 // winners state so we can notify only on the TRANSITION (fire once, not every run forever).
-let prevUsdc = null, prevSol = null, prevWinners = false, prevActionable = 0, prevMerged = 0
+let prevUsdc = null, prevSol = null, prevSolNative = null, prevWinners = false, prevActionable = 0, prevMerged = 0
 try {
   const lines = readFileSync(new URL('./history.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; if (typeof p.solUsdc === 'number') prevSol = p.solUsdc; prevWinners = Boolean(p.winnersFired); prevActionable = p.dealwork?.actionable || 0; prevMerged = p.github?.merged || 0 }
+  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; if (typeof p.solUsdc === 'number') prevSol = p.solUsdc; if (typeof p.solNative === 'number') prevSolNative = p.solNative; prevWinners = Boolean(p.winnersFired); prevActionable = p.dealwork?.actionable || 0; prevMerged = p.github?.merged || 0 }
 } catch {}
 const delta = (typeof usdc === 'number' && typeof prevUsdc === 'number') ? usdc - prevUsdc : 0
 // ugig's PREFERRED payout is usdc_sol, so a real payment most likely lands on Solana — diff it too or
 // the most-likely money event would change a number nobody's alerted to. Same transition-only rule.
 const solDelta = (typeof solUsdcBal === 'number' && typeof prevSol === 'number') ? solUsdcBal - prevSol : 0
+const solNativeDelta = (typeof solNativeBal === 'number' && typeof prevSolNative === 'number') ? solNativeBal - prevSolNative : 0
 // A dealwork contract appearing means a bid was ACCEPTED and escrow is locked — work is owed and
 // paid-for. Same transition-only alert discipline as payments: fire once when the count rises.
 const newContract = (dealwork.actionable || 0) > prevActionable
@@ -220,7 +236,7 @@ const winnersFired = Boolean(hackathon.winnersAnnounced)
 // landed) — the workflow turns this sentinel into a failed run, which GitHub emails the repo owner.
 // Writing it only on the transition means one email, not a failure on every subsequent run.
 const justWon = winnersFired && !prevWinners
-const notify = justWon || delta > 0 || solDelta > 0 || newContract || newMerge
+const notify = justWon || delta > 0 || solDelta > 0 || solNativeDelta > 0 || newContract || newMerge
 
 // remember which listing slugs we have already seen, so we can flag genuinely NEW ones
 let seen = []
@@ -230,7 +246,7 @@ const fresh = openSlugs.filter((s) => !seen.includes(s))
 const freshDetail = (superteam.open || []).filter((o) => fresh.includes(o.slug))
 writeFileSync(new URL('./seen-listings.json', import.meta.url), JSON.stringify([...new Set([...seen, ...openSlugs])], null, 0))
 
-const snapshot = { ts: now, baseUsdc: usdc, solUsdc: solUsdcBal, delta, solDelta, service, paidRoute, intelPipeline, openTask, hackathon, winnersFired, dealwork, github, superteam, newListings: fresh }
+const snapshot = { ts: now, baseUsdc: usdc, solUsdc: solUsdcBal, solNative: solNativeBal, delta, solDelta, solNativeDelta, service, paidRoute, intelPipeline, openTask, hackathon, winnersFired, dealwork, github, superteam, newListings: fresh }
 appendFileSync(new URL('./history.jsonl', import.meta.url), JSON.stringify(snapshot) + '\n')
 
 const md = `# Earning agent status
@@ -240,6 +256,7 @@ _Last run: ${now} (UTC), on GitHub Actions._
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** \`${EVM_WALLET}\`: **${usdc}**${delta > 0 ? ` · 🎉 **+${delta.toFixed(6)} received since last run!**` : ''}
 - **Solana USDC** \`${SOL_WALLET}\`: **${solUsdcBal}**${solDelta > 0 ? ` · 🎉 **+${solDelta.toFixed(6)} received since last run!**` : ''}
+- **Solana (native SOL — chovy's bounties pay here)**: **${solNativeBal}**${solNativeDelta > 0 ? ` · 🎉 **+${solNativeDelta.toFixed(9)} SOL received since last run!**` : ''}
 
 ## 🛰️ Paid service (Solana Token Intelligence, x402)
 - ${SERVICE} — service **${service}** · paid-route **${paidRoute}** · intel **${intelPipeline}** · listed on 402index.io
@@ -276,8 +293,8 @@ const NOTIFY = new URL('./NOTIFY.txt', import.meta.url)
 if (notify) {
   const msg = justWon
     ? `🏆 HACKATHON WINNERS ANNOUNCED (${now}) — claim at superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A`
-    : (delta > 0 || solDelta > 0)
-    ? `💰 PAYMENT RECEIVED (${now}) — ${delta > 0 ? `+${delta.toFixed(6)} USDC on Base (total ${usdc})` : ''}${delta > 0 && solDelta > 0 ? ' + ' : ''}${solDelta > 0 ? `+${solDelta.toFixed(6)} USDC on Solana (total ${solUsdcBal})` : ''}`
+    : (delta > 0 || solDelta > 0 || solNativeDelta > 0)
+    ? `💰 PAYMENT RECEIVED (${now}) — ${delta > 0 ? `+${delta.toFixed(6)} USDC on Base (total ${usdc})` : ''}${delta > 0 && solDelta > 0 ? ' + ' : ''}${solDelta > 0 ? `+${solDelta.toFixed(6)} USDC on Solana (total ${solUsdcBal})` : ''}${solNativeDelta > 0 ? ` +${solNativeDelta.toFixed(9)} native SOL (total ${solNativeBal})` : ''}`
     : newMerge
     ? `💵 PR MERGED (${now}) — a profullstack PR was merged; send the invoice on ugig now to get paid`
     : newContract
@@ -292,6 +309,7 @@ console.log('status:', JSON.stringify(snapshot))
 // Loud CI signals for the events that actually matter — these surface in the Actions run summary.
 if (delta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${delta.toFixed(6)} USDC landed on Base — total ${usdc}`)
 if (solDelta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${solDelta.toFixed(6)} USDC landed on Solana — total ${solUsdcBal}`)
+if (solNativeDelta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${solNativeDelta.toFixed(9)} native SOL landed — total ${solNativeBal}`)
 if (newMerge) console.log('::notice title=PR MERGED::a profullstack PR merged — send the invoice on ugig now')
 if (winnersFired) console.log('::notice title=HACKATHON WINNERS ANNOUNCED::claim at superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A')
 if (openTask.live?.length) console.log(`::notice title=OPENTASK RAIL LIVE::methods ${openTask.live.join(', ')} — a new earning source just opened`)
