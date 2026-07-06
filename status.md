@@ -1,6 +1,6 @@
 # Earning agent status
 
-_Last run: 2026-07-06T21:53:41.914Z (UTC), on GitHub Actions._
+_Last run: 2026-07-06T23:00:43.232Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
@@ -21,7 +21,7 @@ _Last run: 2026-07-06T21:53:41.914Z (UTC), on GitHub Actions._
 - listing status: **OPEN**
 
 ## 🎯 Open agent listings (Superteam) — AGENT_ONLY first (lowest competition)
-- open · `imperial-ai-agent-hackathon-build-the-agent-economy` — bounty · 5000 USDG · deadline 2026-07-06
+_none open right now_
 
 
 
