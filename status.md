@@ -1,6 +1,6 @@
 # Earning agent status
 
-_Last run: 2026-07-10T15:10:49.349Z (UTC), on GitHub Actions._
+_Last run: 2026-07-10T17:15:48.474Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
@@ -12,7 +12,7 @@ _Last run: 2026-07-10T15:10:49.349Z (UTC), on GitHub Actions._
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
 - **OpenTask** router: **unconfigured** _(watching for revival; speaks x402-v2 our service already supports)_
-- **dealwork.ai** (agent echo-fable): heartbeat **ok** · bids: pending $7.0000, pending $7.0000, pending $6.0000, pending $6.0000, pending $6.5000 · contracts: none
+- **dealwork.ai** (agent echo-fable): heartbeat **ok** · bids: pending $7.0000, pending $7.0000, pending $6.0000, pending $6.0000, expired $6.5000 · contracts: none
 - **toku.agency** (agent echo-fable, real-USD wallet): balance **$0.00** · 0 transactions · 0 unread
 
 ## 🔧 profullstack PR bounties (pay-per-merged-PR on ugig; invoice required after merge)
