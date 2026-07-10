@@ -142,7 +142,15 @@ async function tokuRail() {
     })
     if (!r.ok) return { error: `HTTP ${r.status}` }
     const d = await r.json()
-    return { balanceCents: d.balanceCents ?? 0, txs: (d.transactions || []).length }
+    // unread notifications = a hire or DM waiting; the platform has no push to us, so poll it here
+    let unread = 0
+    try {
+      const n = await (await fetch('https://www.toku.agency/api/agents/notifications', {
+        headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10000),
+      })).json()
+      unread = n.unreadCount || 0
+    } catch {}
+    return { balanceCents: d.balanceCents ?? 0, txs: (d.transactions || []).length, unread }
   } catch (e) { return { error: e.message } }
 }
 
@@ -284,7 +292,7 @@ _Last run: ${now} (UTC), on GitHub Actions._
 ## 🔀 Alt rails (widening the net beyond Superteam)
 - **OpenTask** router: **${openTask.state}**${openTask.live?.length ? ` · LIVE methods: ${openTask.live.join(', ')} — ACT NOW` : ' _(watching for revival; speaks x402-v2 our service already supports)_'}
 - **dealwork.ai** (agent echo-fable): ${dealwork.skipped ? `_${dealwork.skipped}_` : dealwork.error ? `_err: ${dealwork.error}_` : `heartbeat **${dealwork.heartbeat}** · bids: ${dealwork.bids?.map((b) => `${b.status} $${b.amount}`).join(', ') || 'none'} · contracts: ${dealwork.contracts?.length ? dealwork.contracts.map((c) => `${c.state} $${c.amount ?? '?'}`).join(', ') : 'none'}${dealwork.actionable ? ' · ⚡ **ESCROW LOCKED — WORK IS OWED, open a session**' : ''}`}
-- **toku.agency** (agent echo-fable, real-USD wallet): ${toku.skipped ? `_${toku.skipped}_` : toku.error ? `_err: ${toku.error}_` : `balance **$${((toku.balanceCents || 0) / 100).toFixed(2)}** · ${toku.txs} transactions${tokuDelta > 0 ? ` · 🎉 **+$${(tokuDelta / 100).toFixed(2)} earned since last run!**` : ''}`}
+- **toku.agency** (agent echo-fable, real-USD wallet): ${toku.skipped ? `_${toku.skipped}_` : toku.error ? `_err: ${toku.error}_` : `balance **$${((toku.balanceCents || 0) / 100).toFixed(2)}** · ${toku.txs} transactions · ${toku.unread || 0} unread${toku.unread ? ' · 📬 **UNREAD NOTIFICATION — possible hire/DM, open a session**' : ''}${tokuDelta > 0 ? ` · 🎉 **+$${(tokuDelta / 100).toFixed(2)} earned since last run!**` : ''}`}
 
 ## 🔧 profullstack PR bounties (pay-per-merged-PR on ugig; invoice required after merge)
 - ${github.error ? `_err: ${github.error}_` : github.prs?.length ? `${github.merged}/${github.total} merged · ${github.prs.map((p) => `${p.merged ? '✅' : p.state === 'closed' ? '❌' : '⏳'} ${p.repo}#${p.num}`).join(', ')}${newMerge ? ' · 💵 **A PR JUST MERGED — SEND THE INVOICE ON ugig NOW**' : ''}` : '_no PRs found yet_'}
@@ -338,5 +346,6 @@ if (winnersFired) console.log('::notice title=HACKATHON WINNERS ANNOUNCED::claim
 if (openTask.live?.length) console.log(`::notice title=OPENTASK RAIL LIVE::methods ${openTask.live.join(', ')} — a new earning source just opened`)
 if (newContract) console.log('::notice title=DEALWORK BID ACCEPTED::escrow locked — work is owed, open a session to deliver')
 if (tokuDelta > 0) console.log(`::notice title=TOKU PAYMENT::+$${(tokuDelta / 100).toFixed(2)} USD landed in the toku.agency wallet — total $${((toku.balanceCents || 0) / 100).toFixed(2)}`)
+if (toku.unread) console.log(`::notice title=TOKU UNREAD::${toku.unread} unread toku notification(s) — possible hire or DM`)
 if (String(paidRoute).startsWith('BROKEN')) console.log(`::warning title=SALES PATH DOWN::${paidRoute}`)
 if (freshDetail.length) console.log('::notice title=NEW LISTINGS::' + freshDetail.map((o) => `${o.slug} (${o.access}, ${o.reward} ${o.token})`).join(' | '))
