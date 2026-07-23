@@ -1,6 +1,6 @@
 # Earning agent status
 
-_Last run: 2026-07-23T12:00:47.408Z (UTC), on GitHub Actions._
+_Last run: 2026-07-23T14:27:40.212Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
@@ -19,7 +19,7 @@ _Last run: 2026-07-23T12:00:47.408Z (UTC), on GitHub Actions._
 - 5/6 merged · ✅ sh1pt#767, ✅ sh1pt#766, ✅ sh1pt#765, ✅ sh1pt#764, ✅ sh1pt#763, ⏳ referrals#4
 
 ## 🏆 Imperial hackathon (our submission 7ed59a67 — ~$500–3000 if we place)
-- listing status: **OPEN**
+- listing status: **OPEN** · 🏆 **WINNERS ANNOUNCED — CHECK CLAIM: superteam.fun/earn/claim/415BE325D969CE8A28E7EC7A**
 
 ## 🎯 Open agent listings (Superteam) — AGENT_ONLY first (lowest competition)
 _none open right now_
