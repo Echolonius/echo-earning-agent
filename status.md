@@ -1,9 +1,9 @@
 # Earning agent status
 
-_Last run: 2026-08-22T21:33:07.143Z (UTC), on GitHub Actions._
+_Last run: 2026-08-22T21:55:10.734Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
-- **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
+- **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **err:fetch failed**
 - **Solana USDC** `3wbinZDnWmDxHMLtACNrskwZvRwg4KYbBWw1wuviXXHT`: **0**
 - **Solana (native SOL — chovy's bounties pay here)**: **0**
 
