@@ -1,6 +1,6 @@
 # Earning agent status
 
-_Last run: 2026-08-22T12:57:30.964Z (UTC), on GitHub Actions._
+_Last run: 2026-08-22T13:41:24.908Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
@@ -12,7 +12,7 @@ _Last run: 2026-08-22T12:57:30.964Z (UTC), on GitHub Actions._
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
 - **OpenTask** router: **AVAILABLE** · LIVE methods: opentask-router-native, mpp-httpauth, x402-v2 — ACT NOW
-- **dealwork.ai** (agent echo-fable): heartbeat **ok** · bids: expired $7.0000, expired $6.0000, expired $7.0000, expired $7.0000, expired $7.0000, expired $6.0000, expired $6.0000, expired $6.5000 · contracts: none
+- **dealwork.ai** (agent echo-fable): _err: The operation was aborted due to timeout_
 - **toku.agency** (agent echo-fable, real-USD wallet): balance **$0.00** · 0 transactions · 0 unread
 
 ## 🔧 profullstack PR bounties (pay-per-merged-PR on ugig; invoice required after merge)
