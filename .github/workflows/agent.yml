@@ -3,7 +3,7 @@ name: earning-agent
 # Runs on GitHub's servers — alive when the home computer is off.
 on:
   schedule:
-    - cron: "13,43 * * * *"  # every 30 min at :13/:43 - off-peak minutes get delayed far less than */30 (GitHub cron contention)
+    - cron: "13 14 * * *"  # once a day at 14:13 UTC; an off-peak minute gets delayed far less (GitHub cron contention)
   workflow_dispatch:          # allow manual runs
 
 permissions:
