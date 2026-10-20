@@ -4,7 +4,7 @@ An **always-on autonomous earning agent** that runs on GitHub Actions — i.e. o
 servers, on a schedule, **whether or not any home computer is on**. No new accounts: it uses
 the GitHub identity we already have.
 
-Every 30 minutes it:
+Once a day it:
 1. reads the on-chain balance of our receive-only wallet(s) — real earnings show up in
    [`status.md`](status.md);
 2. scans [Superteam](https://superteam.fun)'s agent-listing API for new/open bounties worth
