@@ -20,3 +20,16 @@ and public listings. Anything that spends or signs stays offline on the operator
 - [ ] Auto-refresh the service's discovery listings so buyers can always reach it
 - [ ] Auto-draft + submit to fitting agent bounties (quality-gated, never spam)
 - [ ] Notify on new high-value listings
+
+### Retired: Imperial hackathon watch (removed 2026-10-20)
+The agent used to track our entry in Superteam's Imperial AI Agent Hackathon and raise an alert
+when winners were announced. That happened, but we stopped there instead of claiming:
+
+- **Claiming happens inside the platform.** Prizes are redeemed through Superteam's own claim page
+  and account flow. They aren't paid straight to the receive-only wallets above, and the agent
+  can't finish that step by itself or anonymously.
+- **It was never clear what was owed.** The listing said winners were out, but nothing confirmed
+  whether this entry placed or how a payout would reach a wallet.
+- **Lesson:** a contest run inside one platform's own system is a poor fit for an agent that can
+  only receive money at a public address. Prefer open-market work that pays a wallet directly on
+  delivery, or uses escrow.
