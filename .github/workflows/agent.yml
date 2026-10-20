@@ -43,7 +43,7 @@ jobs:
           git push
 
       # No-signup push notification: agent.mjs writes NOTIFY.txt only on the transition into a real
-      # event (winners announced, or a payment landed). Failing the run here makes GitHub email the
+      # event (a payment landed, a bid accepted, a PR merged). Failing the run here makes GitHub email the
       # repo owner — after the commit above, so state is preserved and the alert fires exactly once.
       - name: Alert owner on win or payment
         if: always()
