@@ -267,7 +267,7 @@ _Last run: ${now} (UTC), on GitHub Actions._
 - **Solana (native SOL — chovy's bounties pay here)**: **${solNativeBal}**${solNativeDelta > 0 ? ` · 🎉 **+${solNativeDelta.toFixed(9)} SOL received since last run!**` : ''}
 
 ## 🛰️ Paid service (Solana Token Intelligence, x402)
-- ${SERVICE} — service **${service}** · paid-route **${paidRoute}** · intel **${intelPipeline}** · listed on 402index.io
+- ${SERVICE} — service **${service}** · paid-route **${paidRoute}** · intel **${intelPipeline}**
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
 - **OpenTask** router: **${openTask.state}**${openTask.live?.length ? ` · LIVE methods: ${openTask.live.join(', ')} — ACT NOW` : ' _(watching for revival; speaks x402-v2 our service already supports)_'}
