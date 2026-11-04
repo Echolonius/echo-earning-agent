@@ -213,9 +213,13 @@ const usdc = await baseUsdc()
 const solUsdcBal = await solUsdc()
 const solNativeBal = await solNative()
 const superteam = await superteamLive()
-const service = await serviceHealth()
-const paidRoute = await paidRouteHealth()
-const intelPipeline = await intelPipelineHealth()
+// The token-intel service was taken offline on purpose in October 2026 (code kept as reference in
+// Echolonius/token-intel-x402). Probing it only produced a daily "BROKEN" warning, so it's skipped.
+// Flip SERVICE_RETIRED back to false if the service is ever redeployed.
+const SERVICE_RETIRED = true
+const service = SERVICE_RETIRED ? 'retired' : await serviceHealth()
+const paidRoute = SERVICE_RETIRED ? 'retired' : await paidRouteHealth()
+const intelPipeline = SERVICE_RETIRED ? 'retired' : await intelPipelineHealth()
 const openTask = await openTaskRail()
 const dealwork = await dealworkRail()
 const toku = await tokuRail()
@@ -223,10 +227,10 @@ const github = await githubPrs()
 
 // Balance delta vs the previous run — a payment landing is THE profit event, so flag it loudly
 // instead of leaving it as a quietly-changed number nobody reads.
-let prevUsdc = null, prevSol = null, prevSolNative = null, prevActionable = 0, prevMerged = 0, prevTokuCents = null
+let prevUsdc = null, prevSol = null, prevSolNative = null, prevActionable = 0, prevMerged = 0, prevTokuCents = null, prevOpenTaskLive = []
 try {
   const lines = readFileSync(new URL('./history.jsonl', import.meta.url), 'utf8').trim().split('\n')
-  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; if (typeof p.solUsdc === 'number') prevSol = p.solUsdc; if (typeof p.solNative === 'number') prevSolNative = p.solNative; prevActionable = p.dealwork?.actionable || 0; prevMerged = p.github?.merged || 0; if (typeof p.toku?.balanceCents === 'number') prevTokuCents = p.toku.balanceCents }
+  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; if (typeof p.solUsdc === 'number') prevSol = p.solUsdc; if (typeof p.solNative === 'number') prevSolNative = p.solNative; prevActionable = p.dealwork?.actionable || 0; prevMerged = p.github?.merged || 0; if (typeof p.toku?.balanceCents === 'number') prevTokuCents = p.toku.balanceCents; prevOpenTaskLive = p.openTask?.live || [] }
 } catch {}
 const delta = (typeof usdc === 'number' && typeof prevUsdc === 'number') ? usdc - prevUsdc : 0
 // ugig's PREFERRED payout is usdc_sol, so a real payment most likely lands on Solana — diff it too or
@@ -267,10 +271,10 @@ _Last run: ${now} (UTC), on GitHub Actions._
 - **Solana (native SOL — chovy's bounties pay here)**: **${solNativeBal}**${solNativeDelta > 0 ? ` · 🎉 **+${solNativeDelta.toFixed(9)} SOL received since last run!**` : ''}
 
 ## 🛰️ Paid service (Solana Token Intelligence, x402)
-- ${SERVICE} — service **${service}** · paid-route **${paidRoute}** · intel **${intelPipeline}**
+- ${SERVICE_RETIRED ? '**Retired** (offline on purpose since October 2026; code kept at [token-intel-x402](https://github.com/Echolonius/token-intel-x402))' : `${SERVICE} — service **${service}** · paid-route **${paidRoute}** · intel **${intelPipeline}**`}
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
-- **OpenTask** router: **${openTask.state}**${openTask.live?.length ? ` · LIVE methods: ${openTask.live.join(', ')} — ACT NOW` : ' _(watching for revival; speaks x402-v2 our service already supports)_'}
+- **OpenTask** router: **${openTask.state}**${openTask.live?.length ? ` · live methods: ${openTask.live.join(', ')}` : ' _(watching for revival)_'}
 - **dealwork.ai** (agent echo-fable): ${dealwork.skipped ? `_${dealwork.skipped}_` : dealwork.error ? `_err: ${dealwork.error}_` : `heartbeat **${dealwork.heartbeat}** · bids: ${dealwork.bids?.map((b) => `${b.status} $${b.amount}`).join(', ') || 'none'} · contracts: ${dealwork.contracts?.length ? dealwork.contracts.map((c) => `${c.state} $${c.amount ?? '?'}`).join(', ') : 'none'}${dealwork.actionable ? ' · ⚡ **ESCROW LOCKED — WORK IS OWED, open a session**' : ''}`}
 - **toku.agency** (agent echo-fable, real-USD wallet): ${toku.skipped ? `_${toku.skipped}_` : toku.error ? `_err: ${toku.error}_` : `balance **$${((toku.balanceCents || 0) / 100).toFixed(2)}** · ${toku.txs} transactions · ${toku.unread || 0} unread${toku.unread ? ' · 📬 **UNREAD NOTIFICATION — possible hire/DM, open a session**' : ''}${tokuDelta > 0 ? ` · 🎉 **+$${(tokuDelta / 100).toFixed(2)} earned since last run!**` : ''}`}
 
@@ -317,9 +321,9 @@ if (delta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${delta.toFixed(6)
 if (solDelta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${solDelta.toFixed(6)} USDC landed on Solana — total ${solUsdcBal}`)
 if (solNativeDelta > 0) console.log(`::notice title=PAYMENT RECEIVED::+${solNativeDelta.toFixed(9)} native SOL landed — total ${solNativeBal}`)
 if (newMerge) console.log('::notice title=PR MERGED::a profullstack PR merged — send the invoice on ugig now')
-if (openTask.live?.length) console.log(`::notice title=OPENTASK RAIL LIVE::methods ${openTask.live.join(', ')} — a new earning source just opened`)
+if (openTask.live?.length && !openTask.live.every((m) => prevOpenTaskLive.includes(m))) console.log(`::notice title=OPENTASK RAIL LIVE::methods ${openTask.live.join(', ')} — a new earning source just opened`)
 if (newContract) console.log('::notice title=DEALWORK BID ACCEPTED::escrow locked — work is owed, open a session to deliver')
 if (tokuDelta > 0) console.log(`::notice title=TOKU PAYMENT::+$${(tokuDelta / 100).toFixed(2)} USD landed in the toku.agency wallet — total $${((toku.balanceCents || 0) / 100).toFixed(2)}`)
 if (toku.unread) console.log(`::notice title=TOKU UNREAD::${toku.unread} unread toku notification(s) — possible hire or DM`)
-if (String(paidRoute).startsWith('BROKEN')) console.log(`::warning title=SALES PATH DOWN::${paidRoute}`)
+if (!SERVICE_RETIRED && String(paidRoute).startsWith('BROKEN')) console.log(`::warning title=SALES PATH DOWN::${paidRoute}`)
 if (freshDetail.length) console.log('::notice title=NEW LISTINGS::' + freshDetail.map((o) => `${o.slug} (${o.access}, ${o.reward} ${o.token})`).join(' | '))
