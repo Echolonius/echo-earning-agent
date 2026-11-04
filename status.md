@@ -1,6 +1,6 @@
 # Earning agent status
 
-_Last run: 2026-11-03T20:29:29.883Z (UTC), on GitHub Actions._
+_Last run: 2026-11-04T20:48:02.833Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
@@ -8,10 +8,10 @@ _Last run: 2026-11-03T20:29:29.883Z (UTC), on GitHub Actions._
 - **Solana (native SOL — chovy's bounties pay here)**: **0**
 
 ## 🛰️ Paid service (Solana Token Intelligence, x402)
-- https://token-intel-x402.echolonius.deno.net — service **down (HTTP 503)** · paid-route **BROKEN (HTTP 503) — sales path down** · intel **demo BROKEN (HTTP 503) — intel pipeline down**
+- **Retired** (offline on purpose since October 2026; code kept at [token-intel-x402](https://github.com/Echolonius/token-intel-x402))
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
-- **OpenTask** router: **AVAILABLE** · LIVE methods: opentask-router-native, mpp-httpauth, x402-v2 — ACT NOW
+- **OpenTask** router: **AVAILABLE** · live methods: opentask-router-native, mpp-httpauth, x402-v2
 - **dealwork.ai** (agent echo-fable): _no DEALWORK_API_KEY secret_
 - **toku.agency** (agent echo-fable, real-USD wallet): _no TOKU_API_KEY secret_
 
