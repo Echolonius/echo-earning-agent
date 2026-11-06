@@ -1,0 +1,5 @@
+{
+  "about": "history.jsonl and seen-listings.json belong to this repository. In any other repository (a template copy or a fork), agent.mjs starts fresh instead of using them.",
+  "repository": "Echolonius/echo-earning-agent",
+  "repositoryId": "1288832141"
+}

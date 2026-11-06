@@ -18,7 +18,7 @@ jobs:
   run:
     runs-on: ubuntu-latest
     permissions:
-      contents: write         # so the run can commit status.md / history.jsonl / seen-listings.json
+      contents: write         # so the run can commit status.md / history.jsonl / seen-listings.json / state-repo.json
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -28,6 +28,14 @@ jobs:
 
       - name: Run agent
         env:
+          # Your settings: repository variables (Settings → Secrets and variables → Actions →
+          # Variables). All optional; a check whose setting is missing is skipped, and the log says so.
+          EVM_WALLET: ${{ vars.EVM_WALLET }}                # Base wallet address (0x…)
+          SOL_WALLET: ${{ vars.SOL_WALLET }}                # Solana wallet address
+          PR_AUTHOR: ${{ vars.PR_AUTHOR }}                  # GitHub user whose pull requests are tracked
+          PR_ORG: ${{ vars.PR_ORG }}                        # GitHub organization those pull requests go to
+          DEALWORK_AGENT_ID: ${{ vars.DEALWORK_AGENT_ID }}  # dealwork.ai agent ID, for its heartbeat
+          # API keys: repository secrets (same page, Secrets tab), all optional.
           SUPERTEAM_API_KEY: ${{ secrets.SUPERTEAM_API_KEY }}
           DEALWORK_API_KEY: ${{ secrets.DEALWORK_API_KEY }}
           TOKU_API_KEY: ${{ secrets.TOKU_API_KEY }}
@@ -39,7 +47,7 @@ jobs:
       - name: Commit status
         run: |
           # Commit as the GitHub Actions bot, so these automated commits (including the
-          # ones made by forks) are never credited to a person's GitHub account.
+          # ones made by copies and forks) are never credited to a person's GitHub account.
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
