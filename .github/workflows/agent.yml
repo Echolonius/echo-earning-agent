@@ -34,10 +34,10 @@ jobs:
 
       - name: Commit status
         run: |
-          git config user.name "echo-earning-agent"
-          # GitHub noreply address — keeps commits attributed to the account
-          # without publishing the operator's personal email in every commit.
-          git config user.email "273862755+Echolonius@users.noreply.github.com"
+          # Commit as the GitHub Actions bot, so these automated commits (including the
+          # ones made by forks) are never credited to a person's GitHub account.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --staged --quiet || git commit -m "status @ $(date -u +%FT%TZ)"
           git push
