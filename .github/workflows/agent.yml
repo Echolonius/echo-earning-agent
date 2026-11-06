@@ -6,8 +6,9 @@ on:
     - cron: "13 14 * * *"  # once a day at 14:13 UTC; an off-peak minute gets delayed far less (GitHub cron contention)
   workflow_dispatch:          # allow manual runs
 
+# Read-only by default; the job below asks for the one write access it needs.
 permissions:
-  contents: write             # so the run can commit status.md / history.jsonl
+  contents: read
 
 concurrency:
   group: earning-agent
@@ -16,6 +17,8 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write         # so the run can commit status.md / history.jsonl / seen-listings.json
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -28,7 +31,8 @@ jobs:
           SUPERTEAM_API_KEY: ${{ secrets.SUPERTEAM_API_KEY }}
           DEALWORK_API_KEY: ${{ secrets.DEALWORK_API_KEY }}
           TOKU_API_KEY: ${{ secrets.TOKU_API_KEY }}
-          # default repo token — read-only for public data; lets the PR-merge search run authenticated
+          # the job's own token. It can push to this repo (see permissions above); the agent only
+          # uses it so the public PR-merge search runs authenticated.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node agent.mjs
 
