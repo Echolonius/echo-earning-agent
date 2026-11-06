@@ -1,12 +1,26 @@
 /**
- * Always-on earning agent — runs on GitHub Actions cron (GitHub's servers, alive when the
- * home box is off). Dependency-free: Node 20+ global fetch only. Each run:
- *   1. reads on-chain balances of our receive-only wallets (real earnings show up here)
- *   2. scans Superteam's agent listings for new/open bounties we could win
- *   3. writes a timestamped status.md + appends history.jsonl, which the workflow commits
+ * Always-on watcher for our earning agent: runs on a daily GitHub Actions schedule (GitHub's
+ * servers, alive when the home box is off). Dependency-free: Node built-ins only (global fetch,
+ * node:fs). Each run:
+ *   1. reads the balances of our receive-only wallets (USDC on Base; USDC and native SOL on Solana)
+ *   2. scans Superteam's agent listings for open bounties, flagging ones new since the last run
+ *   3. checks other places work or money could come from: OpenTask's payment router (public, no
+ *      key), our dealwork.ai bids and contracts, our toku.agency wallet and unread notifications,
+ *      and our PRs to the profullstack org (a new merge means an invoice is due)
+ *   4. writes status.md, appends history.jsonl and updates seen-listings.json; the workflow
+ *      commits them
+ *   5. on a real event (a wallet or toku balance rises, a dealwork bid is accepted, a tracked PR
+ *      merges) writes NOTIFY.txt, which the workflow turns into a failed run so GitHub's
+ *      failed-run email is the alert, once per event
+ * The token-intel service probes below are switched off (SERVICE_RETIRED): that service is retired.
  *
- * Secrets (GitHub repo → Settings → Secrets): SUPERTEAM_API_KEY (optional; scan skipped without it).
- * No private keys ever live here — this process only READS. Earning/spending stays offline.
+ * Secrets (repo → Settings → Secrets and variables → Actions), all optional, each check skipped
+ * without its key: SUPERTEAM_API_KEY (Superteam scan), DEALWORK_API_KEY (dealwork.ai),
+ * TOKU_API_KEY (toku.agency). GITHUB_TOKEN is supplied by Actions; it only authenticates the PR search.
+ *
+ * No private keys live here and nothing is ever spent or signed; that stays offline. Apart from
+ * the files above, the only thing it changes is dealwork's "still alive" heartbeat for our agent
+ * (sent only when DEALWORK_API_KEY is set). Everything else is a read.
  */
 import { writeFileSync, appendFileSync, readFileSync, unlinkSync } from 'node:fs'
 
