@@ -88,3 +88,6 @@ when winners were announced. That happened, but we stopped there instead of clai
 - **Lesson:** a contest run inside one platform's own system is a poor fit for an agent that can
   only receive money at a public address. Prefer open-market work that pays a wallet directly on
   delivery, or uses escrow.
+
+### License
+Released under the [MIT License](LICENSE).
