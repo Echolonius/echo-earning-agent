@@ -42,6 +42,14 @@ values in [`agent.mjs`](agent.mjs):
 Left as they are, your fork reports our balances and PRs, and raises the alert (a failed run)
 when one of *ours* changes.
 
+Then, before its first run, delete (or empty) `history.jsonl` and `seen-listings.json` in your
+fork. They hold *our* saved state, and each run compares what it reads with the last line of
+`history.jsonl`: left in place, money already in your wallets looks like a new payment and raises
+a false alert. Without them, the first run records your balances as the starting point and lists
+every open Superteam listing as new. It can still raise the alert once if your PR search already
+finds merged PRs or your dealwork account already has a contract in escrow or in progress,
+because those counts start from zero.
+
 Secrets go in your fork under **Settings → Secrets and variables → Actions**. All of them are
 optional; with none set it still reads the wallets, OpenTask and the PR search.
 
@@ -57,7 +65,8 @@ Before you switch it on, know that:
 - GitHub turns scheduled workflows off in a new fork; you enable them in your fork's **Actions**
   tab.
 - Every run commits `status.md`, `history.jsonl` and `seen-listings.json` to your default branch,
-  with a token that can push to your repo.
+  with a token that can push to your repo. An alert run also commits `NOTIFY.txt` with the alert
+  message, and the next run without an event deletes it.
 - A fork of a public repo is public too, so everything it records is public: the wallet balances
   and, if you add the dealwork or toku keys, your bids, contract amounts, toku balance and unread
   count.
