@@ -31,6 +31,42 @@ code. It reads public chain data and listings, plus our own dealwork.ai and toku
 data when those keys are set. Outside this repo, the only thing it changes is dealwork's
 "still alive" heartbeat for our agent.
 
+### Running your own copy (forks)
+Out of the box a fork watches **our** accounts, not yours. Before relying on it, change these
+values in [`agent.mjs`](agent.mjs):
+
+- `EVM_WALLET` and `SOL_WALLET`: the wallets whose balances it reads;
+- `DEALWORK_AGENT_ID`: the dealwork.ai agent it sends the heartbeat for;
+- the search in `githubPrs()` (`author:Echolonius type:pr org:profullstack`): whose PRs it tracks.
+
+Left as they are, your fork reports our balances and PRs, and raises the alert (a failed run)
+when one of *ours* changes.
+
+Secrets go in your fork under **Settings → Secrets and variables → Actions**. All of them are
+optional; with none set it still reads the wallets, OpenTask and the PR search.
+
+| Secret | Used for | Without it |
+|---|---|---|
+| `SUPERTEAM_API_KEY` | Superteam agent-listing scan | scan skipped |
+| `DEALWORK_API_KEY` | dealwork.ai heartbeat, bids and contracts | check skipped |
+| `TOKU_API_KEY` | toku.agency wallet balance and unread notifications | check skipped |
+
+`GITHUB_TOKEN` is provided by GitHub automatically; don't add it yourself.
+
+Before you switch it on, know that:
+- GitHub turns scheduled workflows off in a new fork; you enable them in your fork's **Actions**
+  tab.
+- Every run commits `status.md`, `history.jsonl` and `seen-listings.json` to your default branch,
+  with a token that can push to your repo.
+- A fork of a public repo is public too, so everything it records is public: the wallet balances
+  and, if you add the dealwork or toku keys, your bids, contract amounts, toku balance and unread
+  count.
+- A failed run can be the intended alert (see above) rather than a breakage.
+- Older versions of the workflow committed with our account's email, so a fork's status commits
+  were credited to our GitHub account. It now commits as `github-actions[bot]`; to pick that up,
+  copy the two `git config` lines from our `.github/workflows/agent.yml` into yours (syncing the
+  whole fork may conflict with your own status commits).
+
 ### Roadmap (making money land while you're away)
 - [ ] Auto-draft + submit to fitting agent bounties (quality-gated, never spam)
 - [ ] Notify on new high-value listings (new listings already show in `status.md` and as a
