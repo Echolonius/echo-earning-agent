@@ -292,11 +292,13 @@ const freshStart = repoId !== '' && stateRepoId !== repoId
 // hasPrev: there is a previous run to compare with. Without one (a fresh start), this run only
 // records a starting point: nothing counts as a new merge or contract, so it raises no alert.
 // Likewise a PR check that was skipped last run (its settings weren't added yet) has no starting
-// point (prevMerged null), so turning it on later doesn't report old merges as new.
+// point (prevMerged null), so turning it on later doesn't report old merges as new. A run whose PR
+// search failed saved the last known count instead (see below); an older failed line without one is
+// unknown too (null), never 0, which used to make every merged PR look new the run after a failure.
 let prevUsdc = null, prevSol = null, prevSolNative = null, prevActionable = 0, prevMerged = 0, prevTokuCents = null, prevOpenTaskLive = [], hasPrev = false
 try {
   const lines = freshStart ? [] : readFileSync(HISTORY, 'utf8').trim().split('\n')
-  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); hasPrev = true; if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; if (typeof p.solUsdc === 'number') prevSol = p.solUsdc; if (typeof p.solNative === 'number') prevSolNative = p.solNative; prevActionable = p.dealwork?.actionable || 0; prevMerged = p.github?.skipped ? null : p.github?.merged || 0; if (typeof p.toku?.balanceCents === 'number') prevTokuCents = p.toku.balanceCents; prevOpenTaskLive = p.openTask?.live || [] }
+  if (lines.length) { const p = JSON.parse(lines[lines.length - 1]); hasPrev = true; if (typeof p.baseUsdc === 'number') prevUsdc = p.baseUsdc; if (typeof p.solUsdc === 'number') prevSol = p.solUsdc; if (typeof p.solNative === 'number') prevSolNative = p.solNative; prevActionable = p.dealwork?.actionable || 0; prevMerged = p.github?.skipped ? null : typeof p.github?.merged === 'number' ? p.github.merged : p.github?.error ? null : 0; if (typeof p.toku?.balanceCents === 'number') prevTokuCents = p.toku.balanceCents; prevOpenTaskLive = p.openTask?.live || [] }
 } catch {}
 const delta = (typeof usdc === 'number' && typeof prevUsdc === 'number') ? usdc - prevUsdc : 0
 // ugig's PREFERRED payout is usdc_sol, so a real payment most likely lands on Solana — diff it too or
@@ -307,7 +309,10 @@ const solNativeDelta = (typeof solNativeBal === 'number' && typeof prevSolNative
 // paid-for. Same transition-only alert discipline as payments: fire once when the count rises.
 const newContract = hasPrev && (dealwork.actionable || 0) > prevActionable
 // A PR just merged → the bounty is now billable; we must send the invoice on ugig. Fire once on a rise.
-const newMerge = hasPrev && prevMerged !== null && (github.merged || 0) > prevMerged
+// A failed search is unknown, not 0: skip the comparison, and save the last known count in its place
+// so the next run compares against that. A merge that happened meanwhile still alerts on that run.
+const newMerge = hasPrev && !github.error && prevMerged !== null && (github.merged || 0) > prevMerged
+if (github.error && hasPrev && typeof prevMerged === 'number') github.merged = prevMerged
 // toku wallet is platform-custodied USD cents; a rise = someone paid for our work there. Transition-only.
 const tokuDelta = (typeof toku.balanceCents === 'number' && typeof prevTokuCents === 'number') ? toku.balanceCents - prevTokuCents : 0
 
@@ -405,6 +410,7 @@ const stillUnset = unset.filter((n) => n !== 'DEALWORK_AGENT_ID' || process.env.
 if (notSetUp) console.log(`::warning title=Not set up yet::No settings found, so the wallet and PR checks were skipped. Add repository variables under ${SETTINGS_PAGE}: EVM_WALLET (Base wallet), SOL_WALLET (Solana wallet), PR_AUTHOR and PR_ORG (whose PRs to track, to which org). All optional; see the README.`)
 else if (stillUnset.length) console.log(`Not set, so their checks were skipped: ${stillUnset.join(', ')} (add under ${SETTINGS_PAGE})`)
 if (wrong.length) console.log(`::warning title=Setting doesn't look right::Skipped the checks that need ${wrong.join(', ')}: the value doesn't look right. Fix it under ${SETTINGS_PAGE}.`)
+if (github.error) console.log(`::warning title=PR search failed::${String(github.error).replace(/[\r\n%]/g, ' ')}. Treated as unknown: no PR alert this run; ${typeof github.merged === 'number' ? `kept the last known count (${github.merged} merged) for the next run` : 'the next run only records the count'}.`)
 if (freshStart) console.log(`::notice title=Started fresh::The saved state here ${stateRepoId ? 'belongs to another repository' : 'has no state-repo.json'}, so this run ignored it and recorded a starting point. Alerts start from the next run.`)
 console.log('status:', JSON.stringify(snapshot))
 // Loud CI signals for the events that actually matter — these surface in the Actions run summary.
