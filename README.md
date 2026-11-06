@@ -28,6 +28,10 @@ copy.
    asks, enable workflows first). From then on it runs by itself once a day; open `status.md` to
    see what it found.
 
+**Running a copy? [Say hi](https://github.com/Echolonius/echo-earning-agent/issues/3)**: tell us
+what you use it for, what broke and what you'd like. Please don't post wallet addresses or keys
+there.
+
 ## Settings
 
 All optional. A check whose setting is missing is skipped, and the run's log names the variable to
@@ -70,7 +74,8 @@ secrets are never copied along with the template or a fork, so a copy can't see 
 
 ## Already running a fork?
 
-Thanks for running it! In older forks our values are written into `agent.mjs` (you'll see
+Thanks for running it, and do [say hi](https://github.com/Echolonius/echo-earning-agent/issues/3)!
+In older forks our values are written into `agent.mjs` (you'll see
 `EVM_WALLET = '0x…'` near the top): unless you edited them, your fork reads our wallets and tracks
 our pull requests, not yours. To switch to settings:
 
