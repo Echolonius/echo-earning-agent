@@ -1,0 +1,24 @@
+name: Bug report
+description: A run failed for no reason, or a check reported something wrong
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: The failing step from the run's log
+      description: Copy it from the Actions tab. Remove API keys, and wallet addresses you want to keep private.
+    validations:
+      required: true
+  - type: input
+    id: settings
+    attributes:
+      label: Which settings you use
+      description: Names only, never the values.
+      placeholder: "EVM_WALLET, SOL_WALLET, SUPERTEAM_API_KEY"
