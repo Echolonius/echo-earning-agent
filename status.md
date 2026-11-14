@@ -1,6 +1,6 @@
 # Earning agent status
 
-_Last run: 2026-11-13T20:53:01.888Z (UTC), on GitHub Actions._
+_Last run: 2026-11-14T19:07:07.514Z (UTC), on GitHub Actions._
 
 ## 💰 Wallet (real earnings land here)
 - **Base USDC** `0xd194AB36E66BccDD80f19b56757CFe52EdEd49af`: **0**
@@ -11,7 +11,7 @@ _Last run: 2026-11-13T20:53:01.888Z (UTC), on GitHub Actions._
 - **Retired** (offline on purpose since October 2026; code kept at [token-intel-x402](https://github.com/Echolonius/token-intel-x402))
 
 ## 🔀 Alt rails (widening the net beyond Superteam)
-- **OpenTask** router: **AVAILABLE** · live methods: opentask-router-native, mpp-httpauth, x402-v2
+- **OpenTask** router: **HTTP 404** _(watching for revival)_
 - **dealwork.ai**: _no DEALWORK_API_KEY secret_
 - **toku.agency** (real-USD wallet): _no TOKU_API_KEY secret_
 
